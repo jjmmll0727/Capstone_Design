@@ -26,6 +26,7 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
+import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 import android.util.Size;
@@ -34,6 +35,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -41,7 +43,13 @@ import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+
 
 public class CamService extends Service {
 
@@ -59,8 +67,10 @@ public class CamService extends Service {
     private ImageReader imageReader = null;
 
     private boolean shouldShowPreview = true;
+    final File file = new File(Environment.getExternalStorageDirectory()+"/DCIM", "pic.jpg");
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
+
     final CameraCaptureSession.CaptureCallback captureCallback = new CameraCaptureSession.CaptureCallback() {
         @Override
         public void onCaptureProgressed(CameraCaptureSession session,
@@ -72,7 +82,6 @@ public class CamService extends Service {
     };
 
     final TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
-        @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
             initCam(width,height);
@@ -82,7 +91,6 @@ public class CamService extends Service {
         public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
 
         }
-
         @Override
         public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
             return false;
@@ -94,18 +102,40 @@ public class CamService extends Service {
         }
     };
 
+    private void save(byte[] bytes) throws IOException {
+        OutputStream output = null;
+        try {
+            output = new FileOutputStream(file);
+            output.write(bytes);
+        } finally {
+            if (null != output) {
+                output.close();
+            }
+        }
+    }
 
-    @RequiresApi(Build.VERSION_CODES.KITKAT)
     private ImageReader.OnImageAvailableListener imageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
             Image image=reader.acquireLatestImage();
-            Log.d(TAG,"Got image: " + " x ");
-            if(image!=null)
+            if(image!=null) {
+                /*
+                ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                byte[] bytes = new byte[buffer.capacity()];
+                buffer.get(bytes);
+                Log.d(TAG, "Got image: " + " x ");
+                try {
+                    save(bytes);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                */
+                Log.d(TAG, "Got image: " + " x ");
                 image.close();
+            }
         }
     };
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
     public CameraDevice.StateCallback stateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(CameraDevice camera) {
@@ -113,14 +143,14 @@ public class CamService extends Service {
             createCaptureSession();
         }
 
-        @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
         @Override
         public void onDisconnected(CameraDevice camera) {
             camera.close();
             cameraDevice=null;
         }
 
-        @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
         @Override
         public void onError( CameraDevice camera, int error) {
             camera.close();
@@ -128,22 +158,20 @@ public class CamService extends Service {
         }
     };
 
-    @Nullable
+
     @Override
     public IBinder onBind(Intent intent) {
         return null;
     }
 
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
     @Override
     public int onStartCommand(Intent intent,int flags, int startId){
         switch (intent.getAction()){
             case ACTION_START:
-                System.out.println("액션스타트로 넘어옴");
                 start();
             case ACTION_START_WITH_PREVIEW:
-                System.out.println("액션스타트 프리뷰로 넘어옴");
                 startWithPreview();
         }
         return super.onStartCommand(intent, flags, startId);
@@ -156,37 +184,35 @@ public class CamService extends Service {
         startForeground();
     }
 
-    @RequiresApi(Build.VERSION_CODES.KITKAT)
+
     public void onDestroy(){
         super.onDestroy();
-        System.out.println(1122);
         stopCamera();
         if(rootview != null) wm.removeView(rootview);
         sendBroadcast(new Intent(ACTION_STOPPED));
     }
 
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
     private void start() {
 
         shouldShowPreview = false;
 
         initCam(320, 200);
-        System.out.println("initCam까지 실행");
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private void startWithPreview(){
         shouldShowPreview = true;
 
+        //다른 앱 위에 그리기 초기화
         initOverlay();
-
+        // 텍스처 뷰가 이미 초기화된 경우 여기에서 카메라를 초기화합니다.
         if(textureView.isAvailable()) initCam(textureView.getWidth(),textureView.getHeight());
         else textureView.setSurfaceTextureListener(surfaceTextureListener);
     }
 
+    //windowManager로 카메라 영상 미리보기
     private void initOverlay(){
-        System.out.println(22);
         LayoutInflater li = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         rootview=li.inflate(R.layout.overlay,null);
         textureView = rootview.findViewById(R.id.texPreview);
@@ -200,13 +226,12 @@ public class CamService extends Service {
           LAYOUT_FLAG,WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                 PixelFormat.TRANSLUCENT);
         wm= (WindowManager) getSystemService(Context.WINDOW_SERVICE);
-        System.out.println("요기");
         wm.addView(rootview,params);
-        System.out.println("요기2");
+
     }
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
+
     private void initCam(int width,int height) {
-        System.out.println(2);
+
         cameraManager= (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         String camId=null;
 
@@ -246,26 +271,15 @@ public class CamService extends Service {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private Size chooseSupportedSize(String camId,int textureViewWidth,int textureViewHeight) throws CameraAccessException {
-        System.out.println(11111);
         CameraManager manager= (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         CameraCharacteristics characteristics = manager.getCameraCharacteristics(camId);
         StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-        System.out.println(11);
-        //이 부분 오류날수도있음
-        Size[] supportedSizes = map.getOutputSizes(SurfaceTexture.class);
-
-        int texVuewArea = textureViewWidth* textureViewHeight;
-        float textVuewAspect=(float)textureViewWidth/(float)textureViewHeight;
-
-        //int nearestTofurthestSz = supportedSizes
         Size size=new Size(320,200);
         return size;
     }
+    //notification을 이용하여 앱을 foreground로 올리기
     private void startForeground(){
-
-        System.out.println("인탠트받아옴1");
         Intent intent =new Intent(this,MainActivity.class);
         PendingIntent pendingIntent=PendingIntent.getActivity(this,0,intent,0);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -284,13 +298,11 @@ public class CamService extends Service {
                 .build();
         startForeground(ONGOING_NOTIFICATION_ID,notification);
 
-        System.out.println("인탠트받아옴 끝남");
+
     }
 
-    @RequiresApi(Build.VERSION_CODES.LOLLIPOP)
     private void createCaptureSession() {
         try{
-            System.out.println(111);
             ArrayList<Surface> targetSurfaces= new ArrayList();
             CaptureRequest.Builder requestBuilder=cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             if(shouldShowPreview){
@@ -332,18 +344,12 @@ public class CamService extends Service {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.KITKAT)
     private void stopCamera(){
         try{
-            System.out.println(1111);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                captureSession.close();
-            }
+            captureSession.close();
             captureSession = null;
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                cameraDevice.close();
-            }
+            cameraDevice.close();
             cameraDevice = null;
 
             imageReader.close();
