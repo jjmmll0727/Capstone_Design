@@ -38,6 +38,7 @@ public class MainActivity extends AppCompatActivity {
     static final int CODE_PERM_SYSTEM_ALERT_WINDOW = 6111;
     Button butStart;
     Button butStop;
+    Button butStartPreview;
     Socket socket;
     static final int CODE_PERM_CAMERA = 6112;
     public final Context context=this;
@@ -99,6 +100,7 @@ public class MainActivity extends AppCompatActivity {
     private void initView(){
         butStart = findViewById(R.id.butStart);
         butStop=findViewById(R.id.butStop);
+        butStartPreview = findViewById(R.id.butStartPreview);
         if(!Python.isStarted()){
             Python.start(new AndroidPlatform(this));
         }
@@ -116,6 +118,24 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 stopService(new Intent(context, CamService.class));
+            }
+        });
+        butStartPreview.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(context)) {
+
+                    // Don't have permission to draw over other apps yet - ask user to give permission
+                    Intent settingsIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION);
+                    startActivityForResult(settingsIntent, CODE_PERM_SYSTEM_ALERT_WINDOW);
+                    return;
+                }
+
+                if (!isServiceRunning(context, CamService.class)) {
+                    notifyService(CamService.ACTION_START_WITH_PREVIEW);
+                    finish();
+                }
             }
         });
     }
@@ -137,6 +157,11 @@ public class MainActivity extends AppCompatActivity {
             butStart.setVisibility(View.GONE);
         }else{
             butStart.setVisibility(View.VISIBLE);
+        }
+        if(running){
+            butStartPreview.setVisibility(View.GONE);
+        }else{
+            butStartPreview.setVisibility(View.VISIBLE);
         }
         if(running){
             butStop.setVisibility(View.VISIBLE);

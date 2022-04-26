@@ -81,7 +81,9 @@ public class CamService extends Service {
         }
     };
 
+    //TextureView 는 카메라 미리보기를 랜더링하기 위한 placeholder 이다
     final TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
+        //surfaceTexture 이 사용가능하면 initCam
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
             initCam(width,height);
@@ -113,7 +115,7 @@ public class CamService extends Service {
             }
         }
     }
-
+    //카메라 캡쳐 기능
     private ImageReader.OnImageAvailableListener imageAvailableListener = new ImageReader.OnImageAvailableListener() {
         @Override
         public void onImageAvailable(ImageReader reader) {
@@ -171,8 +173,10 @@ public class CamService extends Service {
         switch (intent.getAction()){
             case ACTION_START:
                 start();
+                break;
             case ACTION_START_WITH_PREVIEW:
                 startWithPreview();
+                break;
         }
         return super.onStartCommand(intent, flags, startId);
     }
@@ -203,7 +207,6 @@ public class CamService extends Service {
 
     private void startWithPreview(){
         shouldShowPreview = true;
-
         //다른 앱 위에 그리기 초기화
         initOverlay();
         // 텍스처 뷰가 이미 초기화된 경우 여기에서 카메라를 초기화합니다.
@@ -231,10 +234,8 @@ public class CamService extends Service {
     }
 
     private void initCam(int width,int height) {
-
         cameraManager= (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         String camId=null;
-
         try {
             for(String id: cameraManager.getCameraIdList()){
                 CameraCharacteristics characteristics = cameraManager.getCameraCharacteristics(id);
@@ -255,13 +256,6 @@ public class CamService extends Service {
 
 
         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)!= PackageManager.PERMISSION_GRANTED){
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                         int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
             return;
         }
         try {
@@ -361,9 +355,9 @@ public class CamService extends Service {
     }
     public static final  String TAG = "CamService";
 
-    public static final String ACTION_START = "eu.sisik.backgroundcam.action.START";
-    public static final  String ACTION_START_WITH_PREVIEW = "eu.sisik.backgroundcam.action.START_WITH_PREVIEW";
-    public static final  String ACTION_STOPPED = "eu.sisik.backgroundcam.action.STOPPED";
+    public static final String ACTION_START = "action.START";
+    public static final  String ACTION_START_WITH_PREVIEW = "action.START_WITH_PREVIEW";
+    public static final  String ACTION_STOPPED = "action.STOPPED";
 
     public static final  int ONGOING_NOTIFICATION_ID = 6660;
     public static final  String CHANNEL_ID = "cam_service_channel_id";
